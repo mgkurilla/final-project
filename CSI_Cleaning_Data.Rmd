@@ -1,0 +1,50 @@
+---
+title: "datacleaning_csiyear"
+author: "Michelle Kurilla"
+date: "11/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+```
+
+## R Markdown
+
+```{r}
+csi_index <- 
+    read_excel("CSI_1953_2014.xls")
+
+# create new column that only uses first four digits and then convert strings to number
+# save into dataframe then rds 
+# read the rds into app.r 
+
+```
+
+```{r}
+csi_index_by_year <- csi_index %>%
+  select(caseId, CSI) %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  group_by(caseId, CSI) %>%
+  tally() %>%
+  rename(totalCSI = n)
+
+csi_index_by_year
+
+```
+
+```{r}
+data <- csi_index_by_year 
+  
+  ggplot(data, mapping = aes(x = totalCSI, fill = factor(CSI))) + 
+  geom_bar() + 
+  scale_color_viridis_c(palette = "virdis")
+  labs(title = "CSI by Year", 
+            x = "CSI", 
+            y = "Total Count of CSI") 
+```
+
