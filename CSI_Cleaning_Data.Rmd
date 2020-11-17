@@ -11,6 +11,7 @@ library(readxl)
 library(tidyverse)
 library(ggplot2)
 library(viridis)
+library(rstanarm)
 ```
 
 ## R Markdown
@@ -48,3 +49,124 @@ data <- csi_index_by_year
             y = "Total Count of CSI") 
 ```
 
+```{r}
+
+csi_index_by_decade <- csi_index %>%
+  select(caseId, CSI) %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+rowwise %>%
+mutate(decade = str_sub(caseId, start = 1, end = 3)) %>%
+group_by(decade, CSI) %>%
+tally() %>%
+  rename(totalCSI_decade = n)
+  
+# NEED TO ADD 0 TO THIS 
+csi_index_by_decade
+```
+```{r}
+
+# input for shiny
+
+# tabPanel("CSI Index by Decade",  
+#    titlePanel("CSI Index Frequency by Decade"), 
+#    selectInput(
+#      inputId = "csi_index_by_decade",
+#      label = "Decade",
+#      choices = c("195", "196", "197", "198", "199", 
+#                  "200", "201")),
+#    mainPanel(plotOutput("csi_hist_decade")))
+
+
+# output for shiny 
+
+# output$csi_hist_decade <- renderPlot({
+#          data <- csi_index_by_decade %>% 
+#            filter(decade == input$csi_index_by_decade)
+#          ggplot(data, mapping = aes(x = totalCSI_decade, fill = factor(CSI))) + 
+#            geom_bar() + 
+#            theme_bw() + 
+#            labs(title = "CSI by Decade", 
+#                 x = "CSI", 
+#                 y = "Total Count of CSI")
+
+```
+
+## Justice CSV (sums)
+
+```{r}
+
+justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv")
+
+
+# Cases Assigned
+justice_opinion_excel %>%
+select(caseId, majOpinWriter, majOpinAssigner) %>%
+distinct() %>%
+filter(caseId >= 1953) %>%
+drop_na() %>%
+group_by(majOpinAssigner, caseId) %>%
+tally() %>%
+rename(total_cases_assigned = n)
+
+# what to do about NA
+# count as 0 ? 
+  
+
+# Cases Written
+justice_opinion_excel %>%
+select(caseId, majOpinWriter, majOpinAssigner) %>%
+distinct() %>%
+filter(caseId >= 1953) %>%
+drop_na() %>%
+group_by(majOpinWriter, caseId) %>%
+tally() %>%
+rename(total_cases_written = n)
+
+
+# What I want: how many of each summed 
+
+```
+
+## Justice CSV (majOpinWriter, majOpinAssigner, CSI index, caseId)
+
+```{r}
+
+joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
+
+
+chief_justice_frequency <- joined_csv %>%
+select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+distinct() %>%
+filter(majOpinAssigner %in% c(90, 99, 102, 111) & 
+       majOpinWriter %in% c(90, 99, 102, 111)) %>%
+group_by(CSI, majOpinWriter, majOpinAssigner) %>%
+tally() %>%
+rename(total_csi_cases = n)
+chief_justice_frequency
+
+
+# want majOpinAssigner & majOpinWriter equal to chief justices 
+
+
+#http://scdb.wustl.edu/documentation.php?var=majOpinAssigner
+
+# possibly drop_na()
+
+
+```
+
+
+
+## Modeling 
+
+```{r}
+
+# fit_obj <- stan_glm()
+
+```
+
+## Vision of the Project
+
+Tab for CSI Index (by Paper, by Decade, by Year)
+Tab for Justices (by Chief Justice and number of cases assigned)
+Tab for Justices as it relates to CSI 
