@@ -28,6 +28,16 @@ csi_index_by_year <- csi_index %>%
  tally() %>%
  rename(totalCSI = n)
 
+csi_index_by_decade <- csi_index %>%
+  select(caseId, CSI) %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  rowwise %>%
+  mutate(decade = str_sub(caseId, start = 1, end = 3)) %>%
+  group_by(decade, CSI) %>%
+  tally() %>%
+  rename(totalCSI_decade = n)
+
+
 ui <- fluidPage(
   navbarPage(theme = shinytheme("yeti"),
              "Milestone 6",
@@ -63,6 +73,15 @@ ui <- fluidPage(
                       "2009", "2010", "2011", "2012", 
                       "2013", "2014")),
       mainPanel(plotOutput("csi_hist_year"))),
+  
+  tabPanel("CSI Index by Decade",  
+    titlePanel("CSI Index Frequency by Decade"), 
+    selectInput(
+      inputId = "csi_index_by_decade",
+      label = "Decade",
+      choices = c("195", "196", "197", "198", "199", 
+                  "200", "201")),
+    mainPanel(plotOutput("csi_hist_decade"))),
 
    # decided to use yeti theme because it looked the best
    # remember to name newspapers as choices 
@@ -93,25 +112,35 @@ ui <- fluidPage(
             geom_bar() + 
             labs(title = "Case Salience Index by Newspaper",
                  x = "CSI", 
-                 y = "Total Count of CSI")
-            
+                y = "Total Count of CSI")
         })
+        
         output$csi_hist_year <- renderPlot({
           data <- csi_index_by_year %>% 
             filter(caseId == input$csi_index_by_year)
           ggplot(data, mapping = aes(x = totalCSI, fill = factor(CSI))) + 
                    geom_bar() + 
+            theme_bw() + 
             labs(title = "CSI by Year", 
                  x = "CSI", 
                  y = "Total Count of CSI")
       
         })
+        
+        output$csi_hist_decade <- renderPlot({
+          data <- csi_index_by_decade %>% 
+            filter(decade == input$csi_index_by_decade)
+          ggplot(data, mapping = aes(x = totalCSI_decade, fill = factor(CSI))) + 
+            geom_bar() + 
+            theme_bw() + 
+            labs(title = "CSI by Decade", 
+                 x = "CSI", 
+                 y = "Total Count of CSI")
+          
+    })
+        
     }
     
-# Add what 0, 1, and 2 mean 
-# Add what CSI means
-# Probably add subtitle and title
-# Per decade
     # Run the application -----
 
 shinyApp(ui, server)
