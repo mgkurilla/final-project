@@ -122,8 +122,13 @@ group_by(majOpinWriter, caseId) %>%
 tally() %>%
 rename(total_cases_written = n)
 
+# formula: CSI ~ majOpinWriter + majOpinAssigner
 
-# What I want: how many of each summed 
+
+# if RMSE is lower if year is added
+
+# chief justice writer & assigner (2 models & comparison)
+# stan_glm fine for lm model
 
 ```
 
@@ -132,6 +137,8 @@ rename(total_cases_written = n)
 ```{r}
 
 joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
+
+View(joined_csv)
 
 
 chief_justice_frequency <- joined_csv %>%
@@ -148,7 +155,7 @@ chief_justice_frequency
 # want majOpinAssigner & majOpinWriter equal to chief justices 
 
 
-#http://scdb.wustl.edu/documentation.php?var=majOpinAssigner
+# http://scdb.wustl.edu/documentation.php?var=majOpinAssigner
 
 # possibly drop_na()
 
@@ -156,14 +163,80 @@ chief_justice_frequency
 ```
 
 
-
 ## Modeling 
 
 ```{r}
 
-# fit_obj <- stan_glm()
+joined_csv_equal <- joined_csv %>%
+  select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+  distinct() %>%
+  filter(majOpinAssigner %in% c(90, 99, 102, 111) &
+           majOpinWriter %in% c(90, 99, 102, 111)) %>%
+  mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) 
+
+
+fit_obj_1 <- stan_glm(CSI ~ test,
+                         data = joined_csv_equal,
+                          refresh = 0)
+
+fit_obj_2 <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner + test,
+                            data = joined_csv_equal, 
+                            refresh = 0)
+
+joined_split <- initial_split(joined_csv_equal, prob = 0.8) 
+joined_train <- training(joined_split)
+joined_test <- testing(joined_split)
+
+joined_wfl <- workflow() %>%
+  add_model(linear_reg() %>%
+            set_engine("lm") %>%
+            set_mode("regression")) %>%
+  add_recipe(recipe(CSI ~ test, data = joined_train) %>%
+               step_dummy(all_nominal()))
+
+joined_results <- joined_wfl %>%
+  fit(data = joined_train) %>%
+  predict(new_data = joined_test) %>%
+  bind_cols(joined_test %>% select(CSI)) %>%
+  rmse(truth = CSI, estimate = .pred) %>%
+  rename(error = .estimate) %>%
+  select(error)
+
 
 ```
+
+
+## Code from Old Modeling
+
+```{r}
+
+# joined_csv_not_equal <- joined_csv %>%
+#  select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+#  distinct() %>%
+#  filter(majOpinAssigner %in% c(90, 99, 102, 111) &
+#           majOpinWriter %in% c(90, 99, 102, 111)) %>%
+#  group_by(CSI, majOpinWriter, majOpinAssigner) %>%
+#  tally() %>%
+#  rename(total_csi_cases = n)
+
+#fit_obj_equal <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner,
+#                          data = joined_csv_equal,
+#                          refresh = 0)
+
+#fit_obj_not_equal <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner,
+#                                    data = joined_csv_not_equal,
+#                                    refresh = 0)
+
+#print(fit_obj_equal, digits = 4)
+#print(fit_obj_not_equal, digits = 4)
+
+# bad (modeling the 90, 99)
+# add year 
+```
+
+
+
+
 
 ## Vision of the Project
 
