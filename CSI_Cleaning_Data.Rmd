@@ -14,7 +14,7 @@ library(viridis)
 library(rstanarm)
 ```
 
-## R Markdown
+## Read Initial CSI Index XLS File 
 
 ```{r}
 csi_index <- 
@@ -26,7 +26,12 @@ csi_index <-
 
 ```
 
+## CSI Index by Year, by Decade
+
 ```{r}
+
+# format data to be csi index by year
+
 csi_index_by_year <- csi_index %>%
   select(caseId, CSI) %>%
   mutate(caseId = str_sub(caseId, 1, 4)) %>%
@@ -34,22 +39,7 @@ csi_index_by_year <- csi_index %>%
   tally() %>%
   rename(totalCSI = n)
 
-csi_index_by_year
-
-```
-
-```{r}
-data <- csi_index_by_year 
-  
-  ggplot(data, mapping = aes(x = totalCSI, fill = factor(CSI))) + 
-  geom_bar() + 
-  scale_color_viridis_c(palette = "virdis")
-  labs(title = "CSI by Year", 
-            x = "CSI", 
-            y = "Total Count of CSI") 
-```
-
-```{r}
+# format data to be csi index by decade
 
 csi_index_by_decade <- csi_index %>%
   select(caseId, CSI) %>%
@@ -58,88 +48,91 @@ rowwise %>%
 mutate(decade = str_sub(caseId, start = 1, end = 3)) %>%
 group_by(decade, CSI) %>%
 tally() %>%
-  rename(totalCSI_decade = n)
-  
-# NEED TO ADD 0 TO THIS 
-csi_index_by_decade
-```
-```{r}
-
-# input for shiny
-
-# tabPanel("CSI Index by Decade",  
-#    titlePanel("CSI Index Frequency by Decade"), 
-#    selectInput(
-#      inputId = "csi_index_by_decade",
-#      label = "Decade",
-#      choices = c("195", "196", "197", "198", "199", 
-#                  "200", "201")),
-#    mainPanel(plotOutput("csi_hist_decade")))
-
-
-# output for shiny 
-
-# output$csi_hist_decade <- renderPlot({
-#          data <- csi_index_by_decade %>% 
-#            filter(decade == input$csi_index_by_decade)
-#          ggplot(data, mapping = aes(x = totalCSI_decade, fill = factor(CSI))) + 
-#            geom_bar() + 
-#            theme_bw() + 
-#            labs(title = "CSI by Decade", 
-#                 x = "CSI", 
-#                 y = "Total Count of CSI")
+rename(totalCSI_decade = n)
 
 ```
 
-## Justice CSV (sums)
+## Sort Mean and Median of CSI Index by Year
 
 ```{r}
 
-justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv")
+mean_median_csi <- csi_index %>%
+  select(caseId, CSI) %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  rename(year = caseId) %>%
+  group_by(year) %>%
+  summarize(mean = mean(CSI), 
+           median = median(CSI))
+
+mean_median_csi
+```
+
+## Read Justice_Opinion CSV
+
+```{r}
+
+justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
+                                  col_types = cols(
+  .default = col_double(),
+  caseId = col_character(),
+  docketId = col_character(),
+  caseIssuesId = col_character(),
+  voteId = col_character(),
+  dateDecision = col_character(),
+  usCite = col_character(),
+  sctCite = col_character(),
+  ledCite = col_character(),
+  lexisCite = col_character(),
+  chief = col_character(),
+  caseName = col_character(),
+  dateArgument = col_character(),
+  dateRearg = col_character(),
+  lawMinor = col_character(),
+  justiceName = col_character()
+))
+
+```
 
 
-# Cases Assigned
+## Sum Cases by Chief Justices 
+
+```{r}
+
+# Cases Assigned by Chief Justices
+justice_cases_sum <-
 justice_opinion_excel %>%
-select(caseId, majOpinWriter, majOpinAssigner) %>%
+select(caseId, majOpinWriter) %>%
 distinct() %>%
-filter(caseId >= 1953) %>%
+mutate(caseId = str_sub(caseId, 1, 4)) %>%
 drop_na() %>%
-group_by(majOpinAssigner, caseId) %>%
-tally() %>%
-rename(total_cases_assigned = n)
-
-# what to do about NA
-# count as 0 ? 
-  
-
-# Cases Written
-justice_opinion_excel %>%
-select(caseId, majOpinWriter, majOpinAssigner) %>%
-distinct() %>%
-filter(caseId >= 1953) %>%
-drop_na() %>%
+filter(majOpinWriter %in% c(90, 99, 102, 111)) %>%
 group_by(majOpinWriter, caseId) %>%
 tally() %>%
-rename(total_cases_written = n)
-
-# formula: CSI ~ majOpinWriter + majOpinAssigner
-
-
-# if RMSE is lower if year is added
-
-# chief justice writer & assigner (2 models & comparison)
-# stan_glm fine for lm model
+rename(total_cases_assigned = n) %>%
+rename(year = caseId)
 
 ```
 
-## Justice CSV (majOpinWriter, majOpinAssigner, CSI index, caseId)
+
+## Justice CSV (join CSI and Justice Opinion Excel)
 
 ```{r}
 
 joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
 
-View(joined_csv)
+```
 
+
+## Case Frequency by Justice
+
+```{r}
+
+chief_justice_cases <- joined_csv %>%
+  select(caseId, majOpinWriter) %>%
+  distinct() %>%
+  filter(majOpinWriter %in% c(90, 99, 102, 111)) %>%
+  group_by(caseId, majOpinWriter) %>%
+  tally() 
 
 chief_justice_frequency <- joined_csv %>%
 select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
@@ -148,40 +141,111 @@ filter(majOpinAssigner %in% c(90, 99, 102, 111) &
        majOpinWriter %in% c(90, 99, 102, 111)) %>%
 group_by(CSI, majOpinWriter, majOpinAssigner) %>%
 tally() %>%
-rename(total_csi_cases = n)
-chief_justice_frequency
-
-
-# want majOpinAssigner & majOpinWriter equal to chief justices 
-
-
-# http://scdb.wustl.edu/documentation.php?var=majOpinAssigner
-
-# possibly drop_na()
-
+rename(total_csi_cases = n) 
 
 ```
 
-
-## Modeling 
+## Case Sum by Justice (Sum Total)
 
 ```{r}
+
+judge_cases_sum <-
+  justice_opinion_excel %>%
+  select(caseId, majOpinWriter, majOpinAssigner) %>%
+  distinct() %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  drop_na() %>%
+  filter(majOpinWriter %in% c(90, 99, 102, 111), 
+         majOpinAssigner %in% c(90, 99, 102, 111)) %>%
+  filter(majOpinAssigner == majOpinWriter) %>%
+  mutate(writer_name = case_when(majOpinWriter == 90 ~ "Warren", 
+            majOpinWriter == 99 ~ "Burger", 
+            majOpinWriter == 102 ~ "Rhenquist", 
+            majOpinWriter == 111 ~ "Roberts")) %>% 
+  mutate(assigner_name = case_when(majOpinAssigner == 90 ~ "Warren", 
+            majOpinAssigner == 99 ~ "Burger", 
+            majOpinAssigner == 102 ~ "Rhenquist", 
+            majOpinAssigner == 111 ~ "Roberts")) %>%
+  group_by(writer_name, caseId) %>%
+  tally() %>%
+  rename(total_cases_written = n) %>%
+  rename(year = caseId)
+
+
+  
+View(judge_cases_sum)
+
+```
+
+## Modeling (Make "Test" with Joined CSV)
+
+```{r}
+
+View(joined_csv)
 
 joined_csv_equal <- joined_csv %>%
   select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
   distinct() %>%
-  filter(majOpinAssigner %in% c(90, 99, 102, 111) &
-           majOpinWriter %in% c(90, 99, 102, 111)) %>%
+  drop_na() %>%
   mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) 
 
+# filter(majOpinAssigner %in% c(90, 99, 102, 111) &
+ #          majOpinWriter %in% c(90, 99, 102, 111)) %>%
+# add column justifying why dropping na 
+
+joined_csv_equal
+
+```
+
+## Creating Year for Model
+
+```{r}
+
+
+joined_csv_year <-
+joined_csv %>%
+  select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+  distinct() %>%
+  drop_na() %>%
+  mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
+  mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  rename(year = caseId) %>%
+  mutate(year = as.numeric(year))
+  
+joined_csv_year 
+
+#  group_by(year) %>%
+#  summarize(sum_year = sum(CSI))
+
+
+
+
+```
+
+## Modeling (Make Stan GLMs)
+
+```{r}
 
 fit_obj_1 <- stan_glm(CSI ~ test,
                          data = joined_csv_equal,
                           refresh = 0)
 
-fit_obj_2 <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner + test,
-                            data = joined_csv_equal, 
-                            refresh = 0)
+print(fit_obj_1, digits = 4)
+
+
+#fit_obj_2 <- stan_glm(CSI ~ test + nyScore + laScore + )
+
+fit_obj_3 <- stan_glm(CSI ~ test + year, 
+                     data = joined_csv_year, 
+                     refresh = 0)
+
+print(fit_obj_3, digits = 4)
+
+```
+
+# Workflow
+
+```{r}
 
 joined_split <- initial_split(joined_csv_equal, prob = 0.8) 
 joined_train <- training(joined_split)
@@ -202,44 +266,12 @@ joined_results <- joined_wfl %>%
   rename(error = .estimate) %>%
   select(error)
 
-
-```
-
-
-## Code from Old Modeling
-
-```{r}
-
-# joined_csv_not_equal <- joined_csv %>%
-#  select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
-#  distinct() %>%
-#  filter(majOpinAssigner %in% c(90, 99, 102, 111) &
-#           majOpinWriter %in% c(90, 99, 102, 111)) %>%
-#  group_by(CSI, majOpinWriter, majOpinAssigner) %>%
-#  tally() %>%
-#  rename(total_csi_cases = n)
-
-#fit_obj_equal <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner,
-#                          data = joined_csv_equal,
-#                          refresh = 0)
-
-#fit_obj_not_equal <- stan_glm(CSI ~ majOpinWriter + majOpinAssigner,
-#                                    data = joined_csv_not_equal,
-#                                    refresh = 0)
-
-#print(fit_obj_equal, digits = 4)
-#print(fit_obj_not_equal, digits = 4)
-
-# bad (modeling the 90, 99)
-# add year 
 ```
 
 
 
 
 
-## Vision of the Project
 
-Tab for CSI Index (by Paper, by Decade, by Year)
-Tab for Justices (by Chief Justice and number of cases assigned)
-Tab for Justices as it relates to CSI 
+
+
