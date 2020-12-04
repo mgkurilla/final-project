@@ -12,6 +12,9 @@ library(tidyverse)
 library(ggplot2)
 library(viridis)
 library(rstanarm)
+library(gt)
+library(gtsummary)
+library(DT)
 ```
 
 ## Read Initial CSI Index XLS File 
@@ -64,12 +67,11 @@ mean_median_csi <- csi_index %>%
   summarize(mean = mean(CSI), 
            median = median(CSI))
 
-mean_median_csi
 ```
 
 ## Read Justice_Opinion CSV
 
-```{r}
+```{r, message = FALSE, error = FALSE}
 
 justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
                                   col_types = cols(
@@ -92,7 +94,6 @@ justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
 ))
 
 ```
-
 
 ## Sum Cases by Chief Justices 
 
@@ -171,17 +172,26 @@ judge_cases_sum <-
   rename(total_cases_written = n) %>%
   rename(year = caseId)
 
+```
 
-  
-View(judge_cases_sum)
+
+## Creating Datatable 
+
+```{r}
+
+dt_justice <-
+ joined_csv %>%
+ mutate(year = str_sub(caseId, 1, 4)) %>%
+ mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
+ select(CSI, year, caseId, majOpinAssigner, majOpinWriter, 
+        laScore, chScore, washScore, nyScore, test)
 
 ```
+
 
 ## Modeling (Make "Test" with Joined CSV)
 
 ```{r}
-
-View(joined_csv)
 
 joined_csv_equal <- joined_csv %>%
   select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
@@ -189,18 +199,24 @@ joined_csv_equal <- joined_csv %>%
   drop_na() %>%
   mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) 
 
-# filter(majOpinAssigner %in% c(90, 99, 102, 111) &
- #          majOpinWriter %in% c(90, 99, 102, 111)) %>%
-# add column justifying why dropping na 
 
-joined_csv_equal
+```
+
+## Creating Newspaper Data for Model
+
+```{r}
+
+joined_csv_newspaper <- 
+  joined_csv %>%
+  select(CSI, nyScore, washScore, laScore, chScore, majOpinWriter, majOpinAssigner) %>%
+  drop_na() %>%
+  mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0))
 
 ```
 
 ## Creating Year for Model
 
 ```{r}
-
 
 joined_csv_year <-
 joined_csv %>%
@@ -211,14 +227,6 @@ joined_csv %>%
   mutate(caseId = str_sub(caseId, 1, 4)) %>%
   rename(year = caseId) %>%
   mutate(year = as.numeric(year))
-  
-joined_csv_year 
-
-#  group_by(year) %>%
-#  summarize(sum_year = sum(CSI))
-
-
-
 
 ```
 
@@ -226,45 +234,69 @@ joined_csv_year
 
 ```{r}
 
-fit_obj_1 <- stan_glm(CSI ~ test,
-                         data = joined_csv_equal,
-                          refresh = 0)
+fit_obj_test <- stan_glm(CSI ~ test,
+                         data = joined_csv_equal, 
+                         refresh = 0)
 
-print(fit_obj_1, digits = 4)
+print(fit_obj_test, digits = 4)
 
-
-#fit_obj_2 <- stan_glm(CSI ~ test + nyScore + laScore + )
-
-fit_obj_3 <- stan_glm(CSI ~ test + year, 
+fit_obj_test_year <- stan_glm(CSI ~ test + year, 
                      data = joined_csv_year, 
                      refresh = 0)
 
-print(fit_obj_3, digits = 4)
+print(fit_obj_test_year, digits = 4)
 
 ```
 
-# Workflow
+
+## GT Table by hnad 
+
+```{r}
+regression_1 <- tibble(coefficient = 0.8438, 
+                       intercept = 2.6709)
+
+gt(regression_1)
+
+regression_2 <- tibble(coefficient = c("0.08557", "-0.0159"), 
+                       intercept = 34.1201)
+gt(regression_2)
+
+```
+
+## Making DT Table
 
 ```{r}
 
-joined_split <- initial_split(joined_csv_equal, prob = 0.8) 
-joined_train <- training(joined_split)
-joined_test <- testing(joined_split)
+case_by_justice <- joined_csv %>%
+select(CSI, caseId, majOpinWriter, majOpinAssigner, laScore, chScore, 
+washScore, nyScore) %>%
+distinct() %>%
+drop_na() %>%
+mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
+mutate(year = str_sub(caseId, 1, 4)) %>%
+mutate(year = as.numeric(year)) %>%
+relocate(year, .after = CSI) %>%
+ rename(Year = year, 
+         Test = test)
 
-joined_wfl <- workflow() %>%
-  add_model(linear_reg() %>%
-            set_engine("lm") %>%
-            set_mode("regression")) %>%
-  add_recipe(recipe(CSI ~ test, data = joined_train) %>%
-               step_dummy(all_nominal()))
+```
 
-joined_results <- joined_wfl %>%
-  fit(data = joined_train) %>%
-  predict(new_data = joined_test) %>%
-  bind_cols(joined_test %>% select(CSI)) %>%
-  rmse(truth = CSI, estimate = .pred) %>%
-  rename(error = .estimate) %>%
-  select(error)
+# Making boxplot
+
+```{r}
+
+regression_data <- tibble(CSI = c("2.6709", "3.514"), 
+                          test = c("0", "1"))
+
+
+ggplot(regression_data, aes(x = CSI, y = test, group = 1)) +
+geom_point() + 
+geom_line() + 
+theme_classic() + 
+labs(title = "Linear Regression of Supreme Court Case Salience",
+  x = "Median CSI", 
+  y = "Test")
+  
 
 ```
 
