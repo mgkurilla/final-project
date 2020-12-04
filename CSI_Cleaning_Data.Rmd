@@ -192,11 +192,11 @@ judge_cases_sum <-
   
   mutate(writer_name = case_when(majOpinWriter == 90 ~ "Warren", 
             majOpinWriter == 99 ~ "Burger", 
-            majOpinWriter == 102 ~ "Rhenquist", 
+            majOpinWriter == 102 ~ "Rehnquist", 
             majOpinWriter == 111 ~ "Roberts")) %>% 
   mutate(assigner_name = case_when(majOpinAssigner == 90 ~ "Warren", 
             majOpinAssigner == 99 ~ "Burger", 
-            majOpinAssigner == 102 ~ "Rhenquist", 
+            majOpinAssigner == 102 ~ "Rehnquist", 
             majOpinAssigner == 111 ~ "Roberts")) %>%
   
   # group_by names and caseId 

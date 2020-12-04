@@ -91,7 +91,7 @@ regression_1 <- tibble(coefficient = 0.8438,
 
 # Assign image to add to ui 
 
-myImage <- img(src="Supreme_Court.jpg")
+myImage <- img(src="Supreme_Court_Image.jpg")
 
 # Add DT Table on Home
 
@@ -142,7 +142,6 @@ ui <- fluidPage(
                assign the case to themselves?",
               strong("How does this case assignment vary with case 
               significance or perceived significance of the case?")), 
-             
               p("This project analyzes more than 60,000 majority opinions 
               assigned and and written from 1953 to 2014 and their relationship 
               to a case salience index ranging from 0 to 8. Case salience index, 
@@ -150,25 +149,21 @@ ui <- fluidPage(
               correlates to newspaper coverage by The Los Angeles Times, 
               The Chicago Tribune, The Washington Post, and The New York Times. 
               Higher scores indicate more media attention."), 
-             
              p("Before jumping into the analysis of the data, it is worth noting
                that this project only looks at majority opinion assignments
                when the Chief Justice sided with the majority of justices. It 
                also includes the period of tiem when Chief Justices (Burger, 
                Warren, Rehnquist, and Roberts) were on the Supreme Court but had
                not yet been named Chief Justice."), 
-             
              p("This project mostly looks at instances in which the Chief 
                Justice assigned and wrote the opinion himself. Under the 
                Chief Justice Frequency tab, I sum the total number of cases 
                written by Warren, Burger, Rehnquist, and Roberts, including 
                instances where other justices assigned the cases to them."),
-
              p("The datatable below provides a snapshot into the data I am working
                with in this project. It lists all of the cases heard by the 
                Supreme Court from 1953 to 2014. This datatable isn't limited
                to only cases written and assigned by the Chief Justices."), 
-
              p("From left to right, the columns refer to the case salience
                index, case year, the case ID number (which is unique to each 
                case), the majority opinion writer, the majority opinion assigner
@@ -194,9 +189,21 @@ ui <- fluidPage(
              
   # explain chart and its findings
   
-             p("Here's an aggregation of the total number of majority opinions 
+            p("Here's an aggregation of the total number of majority opinions 
          Supreme Court Justices assigned and wrote themselves from 1953 to 2014 
-         broken down by year."), 
+         broken down by year. It is worth noting that this dataset includes 
+         opinions written from 1954 to 2019, extending beyond the 2014 cutoff
+         for CSI index."), 
+            p("Chief Justice Warren wrote the",
+            strong("most cases in 1954, 1956, 1962, and 1968 with 12 
+                   total cases.")),
+            p("Chief Justice Burger wrote the",
+            strong("most cases in 1972 with 19 total cases.")), 
+            p("Chief Justice Rhenquist wrote the",
+            strong("most cases from 1987 to 1989 with 15 total cases.")), 
+            p("Chief Justice Roberts wrote the",
+            strong("a total of 8 cases consistently in 2005, 2008-2010, 2012, 
+                   and 2016.")),
   
   # set plotOutput for server
   # set width to 100% so it takes up tab
@@ -444,7 +451,7 @@ server <- function(input, output) {
     # use renderImage instead of renderPlot
     # set desired height and width of image
     
-    list(src = "Supreme_Court.jpg",
+    list(src = "Supreme_Court_Image.jpg",
          width = 400,
          height = 300,
          alt = "This is alternate text", 
@@ -478,7 +485,8 @@ server <- function(input, output) {
                                   "1995","1996","1997","1998","1999","2000",
                                   "2001","2002","2003","2004","2005","2006",
                                   "2007","2008","2009","2010","2011","2012",
-                                  "2013","2014"),
+                                  "2013","2014", "2015", "2016", "2017", "2018", 
+                                  "2019"),
                        labels = c("1953","","","","","1958","","",
                                   "","","1963","","","","","1968",
                                   "","","","","1973","","","",
@@ -486,7 +494,8 @@ server <- function(input, output) {
                                   "","","","1988","","","","",
                                   "1993","","","","","1998","","",
                                   "","","2003","","","","","2008",
-                                  "","","","","2013","")) + 
+                                  "","","","","2013","", "", "", "", "2018", 
+                                  "")) + 
       theme_classic() + 
       labs(title = "Total Number of Cases Assigned and Written per Justice", 
            x = "Year", 
