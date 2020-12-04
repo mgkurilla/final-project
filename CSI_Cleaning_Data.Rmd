@@ -17,19 +17,18 @@ library(gtsummary)
 library(DT)
 ```
 
-## Read Initial CSI Index XLS File 
+# Read Initial CSI Index XLS File 
 
 ```{r}
+
+# read excel file
+
 csi_index <- 
     read_excel("CSI_1953_2014.xls")
 
-# create new column that only uses first four digits and then convert strings to number
-# save into dataframe then rds 
-# read the rds into app.r 
-
 ```
 
-## CSI Index by Year, by Decade
+# CSI Index by Year, by Decade
 
 ```{r}
 
@@ -55,7 +54,7 @@ rename(totalCSI_decade = n)
 
 ```
 
-## Sort Mean and Median of CSI Index by Year
+# Sort Mean and Median of CSI Index by Year
 
 ```{r}
 
@@ -69,9 +68,12 @@ mean_median_csi <- csi_index %>%
 
 ```
 
-## Read Justice_Opinion CSV
+# Read Justice_Opinion CSV
 
 ```{r, message = FALSE, error = FALSE}
+
+# Read justice_opinion_csv
+# Set cols argument 
 
 justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
                                   col_types = cols(
@@ -95,70 +97,99 @@ justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
 
 ```
 
-## Sum Cases by Chief Justices 
+# Sum Cases by Chief Justices 
 
 ```{r}
 
-# Cases Assigned by Chief Justices
 justice_cases_sum <-
+  
+# pipe in justice_opinion_excel tibble
+  
 justice_opinion_excel %>%
+  
+# select columns to work with 
+  
 select(caseId, majOpinWriter) %>%
+  
+# the columns repeat; use distinct() function 
+  
 distinct() %>%
+  
+# mutate caseId to only include first four digits
+  
 mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  
+# drop na values
+  
 drop_na() %>%
+  
+# filter to only chief justices
+  
 filter(majOpinWriter %in% c(90, 99, 102, 111)) %>%
+  
+# group by chief justices and caseId
+  
 group_by(majOpinWriter, caseId) %>%
+  
+# tally the total number of cases
+  
 tally() %>%
+
+# rename n to total cases assigned
+  
 rename(total_cases_assigned = n) %>%
+  
+# rename the four digit caseId code to year 
+  
 rename(year = caseId)
 
 ```
 
 
-## Justice CSV (join CSI and Justice Opinion Excel)
+# Justice CSV (join CSI and Justice Opinion Excel)
 
 ```{r}
+
+# create inner_join of two databases
 
 joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
 
 ```
 
-
-## Case Frequency by Justice
-
-```{r}
-
-chief_justice_cases <- joined_csv %>%
-  select(caseId, majOpinWriter) %>%
-  distinct() %>%
-  filter(majOpinWriter %in% c(90, 99, 102, 111)) %>%
-  group_by(caseId, majOpinWriter) %>%
-  tally() 
-
-chief_justice_frequency <- joined_csv %>%
-select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
-distinct() %>%
-filter(majOpinAssigner %in% c(90, 99, 102, 111) & 
-       majOpinWriter %in% c(90, 99, 102, 111)) %>%
-group_by(CSI, majOpinWriter, majOpinAssigner) %>%
-tally() %>%
-rename(total_csi_cases = n) 
-
-```
-
-## Case Sum by Justice (Sum Total)
+# Case Sum by Justice (Sum Total)
 
 ```{r}
 
 judge_cases_sum <-
+  
+  # pipe in justice_opinion_excel
+  
   justice_opinion_excel %>%
+  
+  # select columns to work with 
+  
   select(caseId, majOpinWriter, majOpinAssigner) %>%
+  
+  # only use distinct() rows
+  
   distinct() %>%
+  
+  # mutate caseId to get rid of trailing ID numbers
+  
   mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  
+  # drop na values
+  
   drop_na() %>%
+  
+  # filter so that the Chief Justice both assigned and wrote the opinion 
+  
   filter(majOpinWriter %in% c(90, 99, 102, 111), 
          majOpinAssigner %in% c(90, 99, 102, 111)) %>%
   filter(majOpinAssigner == majOpinWriter) %>%
+  
+  # rename to actual justice names 
+  
   mutate(writer_name = case_when(majOpinWriter == 90 ~ "Warren", 
             majOpinWriter == 99 ~ "Burger", 
             majOpinWriter == 102 ~ "Rhenquist", 
@@ -167,66 +198,51 @@ judge_cases_sum <-
             majOpinAssigner == 99 ~ "Burger", 
             majOpinAssigner == 102 ~ "Rhenquist", 
             majOpinAssigner == 111 ~ "Roberts")) %>%
+  
+  # group_by names and caseId 
+  
   group_by(writer_name, caseId) %>%
+  
+  # tally total cases
+  
   tally() %>%
+  
+  # rename n to total cases written 
+  
   rename(total_cases_written = n) %>%
+  
+  # rename mutated caseId to year it was written
+  
   rename(year = caseId)
 
 ```
-
-
-## Creating Datatable 
-
-```{r}
-
-dt_justice <-
- joined_csv %>%
- mutate(year = str_sub(caseId, 1, 4)) %>%
- mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
- select(CSI, year, caseId, majOpinAssigner, majOpinWriter, 
-        laScore, chScore, washScore, nyScore, test)
-
-```
-
 
 ## Modeling (Make "Test" with Joined CSV)
 
 ```{r}
 
-joined_csv_equal <- joined_csv %>%
+joined_csv_equal <- 
+  
+  # pipe in joined csv
+  
+  joined_csv %>%
+  
+  # select columns to work with 
+  
   select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+  
+  # filter to distinct data
+  
   distinct() %>%
+  
+  # drop na values
+  
   drop_na() %>%
+  
+  # mutate to create test column 
+  
   mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) 
 
-
-```
-
-## Creating Newspaper Data for Model
-
-```{r}
-
-joined_csv_newspaper <- 
-  joined_csv %>%
-  select(CSI, nyScore, washScore, laScore, chScore, majOpinWriter, majOpinAssigner) %>%
-  drop_na() %>%
-  mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0))
-
-```
-
-## Creating Year for Model
-
-```{r}
-
-joined_csv_year <-
-joined_csv %>%
-  select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
-  distinct() %>%
-  drop_na() %>%
-  mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
-  mutate(caseId = str_sub(caseId, 1, 4)) %>%
-  rename(year = caseId) %>%
-  mutate(year = as.numeric(year))
 
 ```
 
@@ -234,17 +250,13 @@ joined_csv %>%
 
 ```{r}
 
+# create stan_glm
+# use data created above
+# don't forget to set refresh = 0 
+
 fit_obj_test <- stan_glm(CSI ~ test,
                          data = joined_csv_equal, 
                          refresh = 0)
-
-print(fit_obj_test, digits = 4)
-
-fit_obj_test_year <- stan_glm(CSI ~ test + year, 
-                     data = joined_csv_year, 
-                     refresh = 0)
-
-print(fit_obj_test_year, digits = 4)
 
 ```
 
@@ -252,42 +264,35 @@ print(fit_obj_test_year, digits = 4)
 ## GT Table by hnad 
 
 ```{r}
+
+# manually set gt from stan_glm above
+
 regression_1 <- tibble(coefficient = 0.8438, 
                        intercept = 2.6709)
 
 gt(regression_1)
 
-regression_2 <- tibble(coefficient = c("0.08557", "-0.0159"), 
-                       intercept = 34.1201)
-gt(regression_2)
-
 ```
 
-## Making DT Table
+# Create regression data tibble
 
 ```{r}
 
-case_by_justice <- joined_csv %>%
-select(CSI, caseId, majOpinWriter, majOpinAssigner, laScore, chScore, 
-washScore, nyScore) %>%
-distinct() %>%
-drop_na() %>%
-mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) %>%
-mutate(year = str_sub(caseId, 1, 4)) %>%
-mutate(year = as.numeric(year)) %>%
-relocate(year, .after = CSI) %>%
- rename(Year = year, 
-         Test = test)
-
-```
-
-# Making boxplot
-
-```{r}
+# Create regression tibble with CSI info from regression gt and interpretation
 
 regression_data <- tibble(CSI = c("2.6709", "3.514"), 
                           test = c("0", "1"))
 
+```
+
+
+# Create regression chart 
+
+```{r}
+
+# Pull regression data tibble from above
+# Set x axis to CSI and y axis to test
+# Set group = 1 to have line
 
 ggplot(regression_data, aes(x = CSI, y = test, group = 1)) +
 geom_point() + 
@@ -296,9 +301,11 @@ theme_classic() +
 labs(title = "Linear Regression of Supreme Court Case Salience",
   x = "Median CSI", 
   y = "Test")
-  
 
 ```
+
+
+  
 
 
 
