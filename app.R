@@ -159,21 +159,7 @@ ui <- fluidPage(
                Justice assigned and wrote the opinion himself. Under the 
                Chief Justice Frequency tab, I sum the total number of cases 
                written by Warren, Burger, Rehnquist, and Roberts, including 
-               instances where other justices assigned the cases to them."),
-             p("The datatable below provides a snapshot into the data I am working
-               with in this project. It lists all of the cases heard by the 
-               Supreme Court from 1953 to 2014. This datatable isn't limited
-               to only cases written and assigned by the Chief Justices."), 
-             p("From left to right, the columns refer to the case salience
-               index, case year, the case ID number (which is unique to each 
-               case), the majority opinion writer, the majority opinion assigner
-               (which is often times different from the majority opinion 
-               writer),the case salience index from The Los Angeles Times, the 
-               case salience index from The Chicago Tribune, the CSI Score from 
-               The Washington Post, the case salience index from The New York 
-               Times, and the test column that indicates whether the majority 
-               opinion assigner and the majority opinion writer are the same 
-               person.")),
+               instances where other justices assigned the cases to them.")),
              
   # set imageOutput for server 
   
@@ -192,7 +178,7 @@ ui <- fluidPage(
             p("Here's an aggregation of the total number of majority opinions 
          Supreme Court Justices assigned and wrote themselves from 1953 to 2014 
          broken down by year. It is worth noting that this dataset includes 
-         opinions written from 1954 to 2019, extending beyond the 2014 cutoff
+         opinions written from 1953 to 2019, extending beyond the 2014 cutoff
          for CSI index."), 
             p("Chief Justice Warren wrote the",
             strong("most cases in 1954, 1956, 1962, and 1968 with 12 
