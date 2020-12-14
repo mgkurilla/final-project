@@ -1,5 +1,5 @@
 ---
-title: "datacleaning_csiyear"
+title: "Data Cleaning"
 author: "Michelle Kurilla"
 date: "11/3/2020"
 output: html_document
@@ -145,7 +145,6 @@ rename(year = caseId)
 
 ```
 
-
 # Justice CSV (join CSI and Justice Opinion Excel)
 
 ```{r}
@@ -252,7 +251,7 @@ joined_csv_equal <-
 
 # create stan_glm
 # use data created above
-# don't forget to set refresh = 0 
+# set refresh = 0 for stan_glm to run 
 
 fit_obj_test <- stan_glm(CSI ~ test,
                          data = joined_csv_equal, 
@@ -260,15 +259,14 @@ fit_obj_test <- stan_glm(CSI ~ test,
 
 ```
 
-
 ## GT Table by hnad 
 
 ```{r}
 
 # manually set gt from stan_glm above
 
-regression_1 <- tibble(coefficient = 0.8438, 
-                       intercept = 2.6709)
+regression_1 <- tibble(coefficient = 0.8419, 
+                       intercept = 2.6716)
 
 gt(regression_1)
 
@@ -280,37 +278,92 @@ gt(regression_1)
 
 # Create regression tibble with CSI info from regression gt and interpretation
 
-regression_data <- tibble(CSI = c("2.6709", "3.514"), 
+regression_data <- tibble(CSI = c("2.6716", "3.5135"), 
                           test = c("0", "1"))
+
+
+## FIX THIS!
 
 ```
 
-
-# Create regression chart 
+# writer name & csi 
 
 ```{r}
 
-# Pull regression data tibble from above
-# Set x axis to CSI and y axis to test
-# Set group = 1 to have line
+joined_csv_judge <-
+  
+  # pipe in justice_opinion_excel
+  
+joined_csv %>%
+  
+  # select columns to work with 
+  
+  select(caseId, majOpinWriter, majOpinAssigner, CSI) %>%
+  
+  # only use distinct() rows
+  
+  distinct() %>%
+  
+  # drop na values
+  
+  drop_na() %>%
+  
+  # filter so that the Chief Justice both assigned and wrote the opinion 
+  
+  filter(majOpinWriter %in% c(90, 99, 102, 111), 
+         majOpinAssigner %in% c(90, 99, 102, 111)) %>%
+  filter(majOpinAssigner == majOpinWriter) %>%
+  
+  # rename to actual justice names 
+  
+  mutate(writer_name = case_when(majOpinWriter == 90 ~ "Warren", 
+            majOpinWriter == 99 ~ "Burger", 
+            majOpinWriter == 102 ~ "Rehnquist", 
+            majOpinWriter == 111 ~ "Roberts")) %>% 
+  mutate(assigner_name = case_when(majOpinAssigner == 90 ~ "Warren", 
+            majOpinAssigner == 99 ~ "Burger", 
+            majOpinAssigner == 102 ~ "Rehnquist", 
+            majOpinAssigner == 111 ~ "Roberts")) %>%
+  
+  # deselect majOpinWriter and majOpinAssigner because the numbers are hard to 
+  # model & assigner_name is the same as writer_name
 
-ggplot(regression_data, aes(x = CSI, y = test, group = 1)) +
-geom_point() + 
-geom_line() + 
-theme_classic() + 
-labs(title = "Linear Regression of Supreme Court Case Salience",
-  x = "Median CSI", 
-  y = "Test")
+  select(-majOpinWriter, -majOpinAssigner, -assigner_name)
+
+View(joined_csv_judge)
+
+```
+
+# create fit_obj_judge
+
+```{r}
+
+# create output of CSI and use writer_name as coefficient 
+# use created joined_csv_judge
+# set refresh = 0 for stan_glm to run 
+
+fit_obj_judge <- stan_glm(CSI ~ writer_name,
+                         data = joined_csv_judge, 
+                         refresh = 0)
+
+print(fit_obj_judge, digits = 4)
 
 ```
 
 
-  
+# Regression 2
 
+```{r}
 
+# manually set data for gt tibble
 
+regression_2 <- tibble(Burger = 3.3632, 
+                       Rehnquist = 3.3000, 
+                       Roberts = 3.3103, 
+                       Warren = 3.6965)
 
+# create gt with gt() function 
 
+gt(regression_2)
 
-
-
+```

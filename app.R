@@ -86,8 +86,15 @@ joined_csv_equal <- joined_csv %>%
 
 # Create regression tibble to manually add gt
 
-regression_1 <- tibble(coefficient = 0.8438, 
-                       intercept = 2.6709)
+regression_1 <- tibble(Test = 0.8419, 
+                       Intercept = 2.6716)
+
+# Create regression tibble to manually add gt
+
+regression_2 <- tibble(Burger = 3.3656, 
+                       Rehnquist = 3.3013, 
+                       Roberts = 3.3209, 
+                       Warren = 3.6995)
 
 # Assign image to add to ui 
 
@@ -106,12 +113,6 @@ case_by_justice <- joined_csv %>%
   relocate(year, .after = CSI) %>%
   rename(Year = year, 
          Test = test)
-
-# Create tibble for regression plot
-
-regression_data <- tibble(CSI = c("2.6709", "3.514"), 
-                          test = c("0", "1"))
-
 
 # set up UI
 
@@ -331,10 +332,6 @@ ui <- fluidPage(
      model is limited to the four Chief Justices who opined from 1953 to 2014
      (Burger, Warren, Rehnquist, and Roberts)."),
   
-  # set plotOutput id for regression 
-  
-   plotOutput("regression_1_chart"),
-  
   # explain regression and how it was structured 
   
    p("This model was created by", 
@@ -356,24 +353,63 @@ ui <- fluidPage(
   # interpret model and how it relates back to csi 
   
    p("In this model, the intercept (which represents the case salience 
-     index) is 2.6709 when test is equal to 0. In other words",
-     strong("the case salience index is 2.6709 when the Chief Justice does not assign the opinion to 
+     index) is 2.6716 when test is equal to 0. In other words",
+     strong("the case salience index is 2.6716 when the Chief Justice does not assign the opinion to 
      themselves.")),
    p("As a reminder, a case salience index of 2 means that a case
      receieved front page coverage in one newspaper or some coverage in two 
-     newspapers. On the other hand, the case salience index increases by 0.8436
+     newspapers. On the other hand, the case salience index increases by 0.8419
      when test is equal to 1."), 
    p("This means",
-     strong("the cases salience index is equal to 3.5147 when the Chief Justice
+     strong("the cases salience index is equal to 3.5135 when the Chief Justice
             assigns the opinion to themselves.")), 
    p("As a reminder, a case salience index of 3 means that a case received front
       page coverage in one newspaper and some coverage in another newspaper, or 
       some newspaper coverage in three of the newspapers. A case salience index
       of 4 means that a case received front page coverage in two newspapers, 
       front page coverage in one newspaper and some coverage in two other 
-      newspapers, or some news coverage in all four newspapers.")),
-   
+      newspapers, or some news coverage in all four newspapers."),
+  
+  # add line breaks 
+  
+  br(), 
 
+  # add gt table
+  
+  gt_output(outputId = "regression_2_model"),
+  
+  # add line breaks 
+  
+  br(), 
+  
+  # add interpretation of model 
+  
+  p("This model was created by", 
+    strong("linear regression of one variables (writer_name) to predict 
+    the output of case salience index."), 
+  p("The variable writer_name indicates which justice wrote the majority 
+    opinion assignment. Prior to the use of the variable in this context, 
+    the justices were filtered down to Burger, Rehnquist, Roberts, and Warren. 
+    The data also filtered to instances where they assigned the case to
+    themselves.")),
+  p("In this model, the intercept (which represents the case salience 
+     index) is 3.3656 when the justice is Burger. In other words, the case
+    salience index is",
+    strong("3.3656 when Burger assigns cases to 
+           himself."),
+  p("As a reminder, a case salience index of 3 means that a case
+     receieved front page coverage in one newspaper and some coverage in 
+     another, or some coverage in three newspapers."), 
+  p("The case salinece index decreases by 0.0643 when the justice is Rehnquist.
+    In other words, the case salience index is",
+    strong("3.3103 when Rehnquist assigns cases to himself.")), 
+  p("The case salinece index decreases by 0.0447 when the justice is Roberts.
+    In other words, the case salience index is",
+    strong("3.3209 when Roberts assigns cases to himself.")),
+  p("The case salinece index increases by 0.3339 when the justice is Warren.
+    In other words, the case salience index is",
+    strong("3.6995 when Warren assigns cases to himself.")))),
+   
   # name tab to match its content 
 
   tabPanel("About",
@@ -545,9 +581,8 @@ server <- function(input, output) {
   output$regression_1_model <- render_gt({
     gt(regression_1) %>%
     tab_header(title = "Linear Regression of Supreme Court Case Salience Index",              
-               subtitle = "The Effect of the Majority Opinion Writer and the 
-               Majority Opinion Assigner on the Supreme Court Case 
-               Salience Index") 
+               subtitle = "The Effect of the Majority Opinion Writer and Assigner 
+               on CSI") 
   
   })
   
@@ -555,16 +590,11 @@ server <- function(input, output) {
   # match plotOutput id from above
   # use theme_classic() to be consistent 
   
-  output$regression_1_chart <- renderPlot({
-    data <- regression_data
-    ggplot(data, aes(x = CSI, y = test, group = 1)) +
-      geom_point() + 
-      geom_line() + 
-      theme_classic() + 
-      labs(title = "Linear Regression of Supreme Court Case Salience",
-           x = "Median CSI", 
-           y = "Test")
-  
+  output$regression_2_model <- render_gt({
+    gt(regression_2) %>%
+      tab_header(title = "Linear Regression of Supreme Court Case Salience Index",              
+                 subtitle = "The Effect of the Chief Justice on CSI") 
+    
   })
   
 }
