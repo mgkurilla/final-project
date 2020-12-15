@@ -18,15 +18,38 @@ csi_index <-
 # set mean_csi by selecting and mutating relevant data
 
 mean_median_csi <- csi_index %>%
+  
+# only want to work with caseId and csi for the mean_median_index
+  
   select(caseId, CSI) %>%
+  
+# each caseId number comes with additional identifying numbers
+# because we want to calculate by year, mutate to remove the other numbers
+# use str_sub to set it to the four-digit number
+
   mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  
+# rename column to year 
+  
   rename(year = caseId) %>%
+  
+# group by year function to then summarize the mean and median
+  
   group_by(year) %>%
+  
+# summarize mean and median to be used as input variables in the shiny 
+# tried mutating without group_by initially 
+# this ultimately made the most sense 
+  
   summarize(mean = mean(CSI), 
             median = median(CSI)) %>%
+  
+# mutate year to a factor 
+  
   mutate(year = as.factor(year))
 
 # Read justice_opinion_excel
+# Set col_types to prevent re-printing of cols
 
 justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
                                   col_types = cols(
@@ -51,11 +74,34 @@ justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
 # Create Sum of Cases Justices Assigned to Themselves
 
 judge_cases_sum <-
+  
+# pipe in justice_opinion_excel 
+  
   justice_opinion_excel %>%
+  
+# select caseId, majOpinWriter and majOpinAssigner because I am looking at
+# Chief Justices who write and assign opinions to themselves 
+  
   select(caseId, majOpinWriter, majOpinAssigner) %>%
+  
+# each row appears 9 times because of the 9 justices
+# use distinct() to print each row only one time 
+  
   distinct() %>%
+  
+# mutate caseId to only 4 digits 
+  
   mutate(caseId = str_sub(caseId, 1, 4)) %>%
+  
+# drop na values
+  
   drop_na() %>%
+  
+# filter so that I can look at only instances where the four Chief Justices
+# write and assign cases to themselves
+# each Justice has a number 90, 99, 102, and 111
+# rename the numbers to the Justices actual names
+  
   filter(majOpinWriter %in% c(90, 99, 102, 111), 
          majOpinAssigner %in% c(90, 99, 102, 111)) %>%
   filter(majOpinAssigner == majOpinWriter) %>%
@@ -67,9 +113,24 @@ judge_cases_sum <-
                                    majOpinAssigner == 99 ~ "Burger", 
                                    majOpinAssigner == 102 ~ "Rehnquist", 
                                    majOpinAssigner == 111 ~ "Roberts")) %>%
+  
+  # group_by writer_name and caseId to tally how many each justice wrote
+  # in each year
+  # don't need to use assigner_name because they are filtered to when 
+  # writer_name and assigner_name are equal to each other 
+  
   group_by(writer_name, caseId) %>%
+  
+  # sum the total 
+  
   tally() %>%
+  
+  # rename n to a more distinguishable col title
+  
   rename(total_cases_written = n) %>%
+  
+  # rename caseId to year so it matches its mutated qualities 
+  
   rename(year = caseId)
 
 # Create Joined CSV
@@ -77,11 +138,26 @@ judge_cases_sum <-
 joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
 
 # Joined CSV Equal (for Test in Model)
+# pipe in joined_csv
 
 joined_csv_equal <- joined_csv %>%
+  
+# select csi, caseId, majOpinWriter, majOpinAssigner
+  
   select(CSI, caseId, majOpinWriter, majOpinAssigner) %>%
+  
+# each row appears 9 times so use distinct() so each row appears once 
+  
   distinct() %>%
+  
+# drop na values 
+  
   drop_na() %>%
+  
+# create a new column called test with a value of 0 or 1
+# 0 means they are not equal to one another
+# 1 means they are equal to one another
+  
   mutate(test = if_else(majOpinAssigner == majOpinWriter, 1, 0)) 
 
 # Create regression tibble to manually add gt
@@ -89,7 +165,7 @@ joined_csv_equal <- joined_csv %>%
 regression_1 <- tibble(Test = 0.8419, 
                        Intercept = 2.6716)
 
-# Create regression tibble to manually add gt
+# Create regression tibble to manually add gt values
 
 regression_2 <- tibble(Burger = 3.3656, 
                        Rehnquist = 3.3013, 
@@ -134,6 +210,7 @@ ui <- fluidPage(
              titlePanel("Introduction"),
              
   # explain project layout and why it matters 
+  # use sidebarLayout and mainPanel to arrange layout of the page
   
              sidebarLayout(
              mainPanel(
@@ -333,6 +410,7 @@ ui <- fluidPage(
      (Burger, Warren, Rehnquist, and Roberts)."),
   
   # explain regression and how it was structured 
+  # use "strong" to make the distinctions of this model stand out
   
    p("This model was created by", 
      strong("linear regression of one variable (test) to predict the output of 
@@ -356,13 +434,22 @@ ui <- fluidPage(
      index) is 2.6716 when test is equal to 0. In other words",
      strong("the case salience index is 2.6716 when the Chief Justice does not assign the opinion to 
      themselves.")),
+  
+  # use paragraph to distinguish what this csi means
+  
    p("As a reminder, a case salience index of 2 means that a case
      receieved front page coverage in one newspaper or some coverage in two 
      newspapers. On the other hand, the case salience index increases by 0.8419
      when test is equal to 1."), 
+  
+  # use strong() to distinguish the findings of the csi when test = 1
+  
    p("This means",
      strong("the cases salience index is equal to 3.5135 when the Chief Justice
             assigns the opinion to themselves.")), 
+  
+  # use paragraph to distinguish what this csi means
+  
    p("As a reminder, a case salience index of 3 means that a case received front
       page coverage in one newspaper and some coverage in another newspaper, or 
       some newspaper coverage in three of the newspapers. A case salience index
@@ -370,15 +457,16 @@ ui <- fluidPage(
       front page coverage in one newspaper and some coverage in two other 
       newspapers, or some news coverage in all four newspapers."),
   
-  # add line breaks 
+  # add line breaks with br() to make it easier to read
   
   br(), 
 
-  # add gt table
+  # add gt table with gt_output
+  # named outputId 2 to distinguish it from the first model 
   
   gt_output(outputId = "regression_2_model"),
   
-  # add line breaks 
+  # add line breaks with br() to make it easier to read 
   
   br(), 
   
@@ -472,6 +560,7 @@ server <- function(input, output) {
     
     # use renderImage instead of renderPlot
     # set desired height and width of image
+    # played around with different widths and heights but this seemed optimal
     
     list(src = "Supreme_Court_Image.jpg",
          width = 400,
@@ -492,10 +581,12 @@ server <- function(input, output) {
   # set fill and color to writer_name to see the associations 
     
     ggplot(data, mapping = aes(x = year, y = total_cases_written, 
-                               fill = writer_name, color = writer_name)) +
+                               fill = writer_name)) +
       geom_col() + 
       
    # use "" to label out every 5 years
+   # before this, the text was far too close together 
+   # match the number of breaks to the number of labels
       
       scale_x_discrete(breaks = c("1953","1954","1955","1956","1957","1958",
                                   "1959","1960","1961","1962","1963","1964",
@@ -518,7 +609,18 @@ server <- function(input, output) {
                                   "","","2003","","","","","2008",
                                   "","","","","2013","", "", "", "", "2018", 
                                   "")) + 
+      
+      # because we used scale_x_discrete, we will also use scale_fill_discrete
+      # rename legend title from writer_name to Chief Justice 
+      
+      scale_fill_discrete(name = "Chief Justice") + 
+      
+      # set theme to classic() to match other charts
+      
       theme_classic() + 
+      
+      # title the chart to explain what is happening 
+      
       labs(title = "Total Number of Cases Assigned and Written per Justice", 
            x = "Year", 
            y = "Total Cases Written and Assigned")
@@ -529,10 +631,20 @@ server <- function(input, output) {
   # use theme_classic() to be consistent 
   
   output$csi_newspaper <- renderPlot({
+    
+    # pipe in csi_index data but select the input variable from the selection 
+    # menu 
+    
     data <- csi_index %>% select(.data[[input$var]])
     ggplot(data, mapping = aes(x = .data[[input$var]])) +
       geom_bar() +
+      
+    # match theme to other charts in the shiny app 
+      
       theme_classic() + 
+      
+    # title the chart to explain what is happening 
+      
       labs(title = "Case Salience Index by Newspaper",
            x = "CSI",
            y = "Total Count of CSI")
@@ -543,11 +655,23 @@ server <- function(input, output) {
   # use theme_classic() to be consistent 
   
   output$mean_median_csi <- renderPlot({
+    
+    # name the data to work with 
+    
     data <- mean_median_csi
+    
+    # recall data from above
+    # set case_when for the input values
+    
     ggplot(data, mapping = aes(x = year, y = case_when(
       input$mean_median == "mean" ~ mean, 
       input$mean_median == "median" ~ median))) +
       geom_col() + 
+      
+      # use "" to label out every 5 years
+      # before this, the text was far too close together 
+      # match the number of breaks to the number of labels 
+      
       scale_x_discrete(breaks = c("1953","1954","1955","1956","1957","1958",
                                     "1959","1960","1961","1962","1963","1964",
                                     "1965","1966","1967","1968","1969","1970",
@@ -567,8 +691,13 @@ server <- function(input, output) {
                                     "1993","","","","","1998","","",
                                     "","","2003","","","","","2008",
                                     "","","","","2013","")) + 
-      geom_smooth(method = "lm") + 
+      
+      # use theme_classic() to match the other charts 
+      
       theme_classic() + 
+      
+      # use titles to explain the meaning of the chart
+      
       labs(title = "Mean vs. Median Supreme Court Case Salience Index by Year", 
            x = "Year", 
            y = "Mean vs. Median Case Salience Index")
@@ -579,7 +708,13 @@ server <- function(input, output) {
   # match gt_output from above
   
   output$regression_1_model <- render_gt({
+    
+  # use gt() to display table
+    
     gt(regression_1) %>%
+      
+  # title the gt table and what is happening
+      
     tab_header(title = "Linear Regression of Supreme Court Case Salience Index",              
                subtitle = "The Effect of the Majority Opinion Writer and Assigner 
                on CSI") 
@@ -591,7 +726,13 @@ server <- function(input, output) {
   # use theme_classic() to be consistent 
   
   output$regression_2_model <- render_gt({
+    
+  # use gt() to display table
+    
     gt(regression_2) %>%
+      
+  # title the gt table and what is happening
+      
       tab_header(title = "Linear Regression of Supreme Court Case Salience Index",              
                  subtitle = "The Effect of the Chief Justice on CSI") 
     

@@ -22,35 +22,10 @@ library(DT)
 ```{r}
 
 # read excel file
+# name csi_index to distinguish from justice_excel 
 
 csi_index <- 
     read_excel("CSI_1953_2014.xls")
-
-```
-
-# CSI Index by Year, by Decade
-
-```{r}
-
-# format data to be csi index by year
-
-csi_index_by_year <- csi_index %>%
-  select(caseId, CSI) %>%
-  mutate(caseId = str_sub(caseId, 1, 4)) %>%
-  group_by(caseId, CSI) %>%
-  tally() %>%
-  rename(totalCSI = n)
-
-# format data to be csi index by decade
-
-csi_index_by_decade <- csi_index %>%
-  select(caseId, CSI) %>%
-  mutate(caseId = str_sub(caseId, 1, 4)) %>%
-rowwise %>%
-mutate(decade = str_sub(caseId, start = 1, end = 3)) %>%
-group_by(decade, CSI) %>%
-tally() %>%
-rename(totalCSI_decade = n)
 
 ```
 
@@ -74,6 +49,9 @@ mean_median_csi <- csi_index %>%
 
 # Read justice_opinion_csv
 # Set cols argument 
+# the excel file has many rows
+# though I mostly plan to work with cols like caseId
+# I didn't want to lose any columns and loaded all of them 
 
 justice_opinion_excel <- read_csv("SCDB_2020_01_justiceCentered_Citation_2.csv",
                                   col_types = cols(
@@ -150,6 +128,10 @@ rename(year = caseId)
 ```{r}
 
 # create inner_join of two databases
+# important to join data because then it only includes cases where
+# the csi and caseId match 
+# the justice_opinion_excel includes up to 2019 whereas the csi dataset
+# only includes up to 2014
 
 joined_csv <- inner_join(csi_index, justice_opinion_excel, by = "caseId")
 
@@ -220,6 +202,9 @@ judge_cases_sum <-
 
 ```{r}
 
+# named it joined_csv equal to distinguish it from my other joined_csv objects
+# the joined_csv objects are later used in the stan_glms to model
+
 joined_csv_equal <- 
   
   # pipe in joined csv
@@ -250,12 +235,17 @@ joined_csv_equal <-
 ```{r}
 
 # create stan_glm
-# use data created above
+# use joined_csv_equal created above for this stan_glm
 # set refresh = 0 for stan_glm to run 
+# initially tried too many variables at once, so I settled on using test
+# modeling the difference between CSI scores when the Chief Justice assigns 
+# and writes the case versus when they do not
 
 fit_obj_test <- stan_glm(CSI ~ test,
                          data = joined_csv_equal, 
                          refresh = 0)
+
+# print model with 4 digits to see the impact 
 
 ```
 
@@ -263,26 +253,14 @@ fit_obj_test <- stan_glm(CSI ~ test,
 
 ```{r}
 
-# manually set gt from stan_glm above
+# pull numbers from stan_glm above
 
 regression_1 <- tibble(coefficient = 0.8419, 
                        intercept = 2.6716)
 
+# use gt() function to create gt table
+
 gt(regression_1)
-
-```
-
-# Create regression data tibble
-
-```{r}
-
-# Create regression tibble with CSI info from regression gt and interpretation
-
-regression_data <- tibble(CSI = c("2.6716", "3.5135"), 
-                          test = c("0", "1"))
-
-
-## FIX THIS!
 
 ```
 
@@ -341,15 +319,18 @@ View(joined_csv_judge)
 # create output of CSI and use writer_name as coefficient 
 # use created joined_csv_judge
 # set refresh = 0 for stan_glm to run 
+# modeling the difference between CSI scores when different Chief Justice assign 
+# and write cases
+# the data is already filtered to instances where the Chief Justices are writing
+# and assigning the cases 
 
 fit_obj_judge <- stan_glm(CSI ~ writer_name,
                          data = joined_csv_judge, 
                          refresh = 0)
 
-print(fit_obj_judge, digits = 4)
+# print model with four digits to see the changes 
 
 ```
-
 
 # Regression 2
 
